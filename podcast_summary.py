@@ -4,9 +4,12 @@ import pendulum
 import requests
 import xmltodict
 
+from airflow.providers.sqlite.operators.sqlite import SqliteOperator
+
 # Download podcast metadata
 
 
+# all DAGs property
 @dag(
     dag_id="podcast_summary",
     schedule_interval="@hourly",
@@ -14,9 +17,22 @@ import xmltodict
     catchup=False,
 )
 # creating our first dataline
-# comtain all the logic of pipline
+# contain all the logic of pipeline
+# you should change airflow.cfg dags_folder
 def podcast_summary():
-    # create operator s s
+    create_databases = SqliteOperator(
+        task_id="create_table_sqlite",
+        sql=r"""
+        CREATE TABLE IF NOT EXISTS episodes(
+            link TEXT PRIMARY KEY,
+            title TEXT,
+            filename TEXT,
+            published TEXT,
+            description TEXT
+        )
+        """,
+    )
+
     @task()
     def get_episodes():
         data = requests.get("https://marketplace.org/feed/podcast/marketplace")
@@ -26,6 +42,7 @@ def podcast_summary():
         return episodes
 
     podcast_episodes = get_episodes()
+    create_databases.set_downstream(podcast_episodes)
 
 
 summary = podcast_summary()
