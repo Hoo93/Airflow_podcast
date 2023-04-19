@@ -1,18 +1,17 @@
-from airflow.decorators import dag, task
-import pendulum
-
+import os
+import json
 import requests
 import xmltodict
 
+from airflow.decorators import dag, task
+import pendulum
 from airflow.providers.sqlite.operators.sqlite import SqliteOperator
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
 
-# import pandas
 
 # Download podcast metadata
-
-
 PODCAST_URL = "https://marketplace.org/feed/podcast/marketplace"
+EPISODE_FOLDER = "episodes"
 
 
 # all DAGs property
@@ -83,6 +82,20 @@ def podcast_summary():
         )
 
     load_episodes(podcast_episodes)
+
+    @task()
+    def download_episodes(episodes):
+        for episode in episodes:
+            name_end = episode["link"].split("/")[-1]
+            filename = f"{name_end}.mp3"
+            audia_path = os.path.join(EPISODE_FOLDER, filename)
+            if not os.path.exists(audia_path):
+                print(f"Downloading {filename}")
+                audio = requests.get(episode["enclosure"]["@url"])
+                with open(audia_path, "wb+") as f:
+                    f.write(audio.content)
+
+    download_episodes(podcast_episodes)
 
 
 summary = podcast_summary()
